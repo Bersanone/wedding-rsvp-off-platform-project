@@ -1,3 +1,8 @@
+//Questo è un'implementazione di una tabella hash che utilizza il metodo di separate chaining
+//per gestire le collisioni. Ogni bucket della tabella hash è una lista collegata che memorizza le voci con lo stesso indice hash.
+//I best case scenario per le operazioni di inserimento, ricerca e rimozione sono O(1) quando non ci sono collisioni,
+//mentre i worst case scenario sono O(n) quando tutte le voci collidono e finiscono nella stessa lista collegata.
+//per ovviare a ciò, la tabella viene ridimensionata quando il fattore di carico supera una soglia specificata.
 import { linkedList } from "../linked_list.js";
 
 
@@ -6,7 +11,11 @@ import { linkedList } from "../linked_list.js";
 
 
 
+//Creiamo una classe entry che rappresentano i paramenti chiave-valore-hash
+//che verranno memorizzati nella tabella hash
+
 class entry{
+    //assegnamo i parametri d'entrata come chiave, valore e hash
     constructor(value,key,hash){
         this.key = key;
         this.value = value;
@@ -14,7 +23,8 @@ class entry{
 
     }
 
-
+     //Metodo per confrontare due entry in base alla chiave e all'hash
+     //Restituisce true se sono uguali, altrimenti false
 
     equals(other){
         if(this.hash != other.hash){ return false}
@@ -22,6 +32,8 @@ class entry{
         return this.key === other.key
     }
 
+
+    //Metodo per stampare una entry in formato chiave: valore
 
     stampa(){
         return this.key+": "+this.value
@@ -34,14 +46,28 @@ class entry{
 
 
 
+//Creiamo la classe hash table 
+// questa è la parte principale dell'implementazione della tabella hash con separate chaining
+//Contiene metodi per inserire, cercare e rimuovere elementi, nonché per gestire il ridimensionamento della tabella
+
 class hashTable{
+    //All'interbno del costruttore definiamo la capacità e il fattore di carico
+    //Il fattore di carico determina quando ridimensionare la tabella
     constructor(capacity,loadFactor){
+        //Definiamo la capacita di default
         this.DEFAULT_CAPACITY=3;
+        //Definiamo il fattore di carico di default
         this.DEFAULT_LOAD_FACTOR=0.75;
+        //Definioamo il fattore di carico massimo
         this.MAX_LOAD_FACTOR=0.75;
+
+        //Inizializziamo a 0 le proprietà della tabella hash
         this.capacity=0;
         this.size=0;
+        //threshold indica il numero massimo di elementi prima di ridimensionare la tabella
         this.threshold=0;
+
+        //se viene passato un valore di capacità negativo o un fattore di carico non valido, viene generato un errore
 
         if(this.capacity<0){
             throw new Error("Illegal capacity: "+this.capacity)
@@ -51,26 +77,38 @@ class hashTable{
             throw new Error("Illegal load factor: "+loadFactor)
         }
 
+        //assegnamo il valore massimmo tra la capacità passata e la capacità di default
+
         this.capacity = Math.max(capacity || this.DEFAULT_CAPACITY);
+        //assegnamo il fattore di carico massimo
         this.MAX_LOAD_FACTOR   =loadFactor ;
+        //calcoliamo il rapporto tra il numero di elementi presenti e fattore di carico
         this.threshold = this.capacity*this.MAX_LOAD_FACTOR;
+
+        //Inizializziamo la tabella hash come un array che conrtedi liste collegate
 
         this.table = new Array(this.capacity);
     }
 
-    stringHashCode(str){
+    //Metodo per creare l'hash di una stringa
 
+    stringHashCode(str){
+    //inizializziamo l'hash a 0
     let hash =0;
+    //selezionamo tutti i caratteri della stringa e sommiamo il loro valore unicode all'hash
     for(let i=0;i<str.length; i++){
+        //la funzione charCodeAt restituisce il valore unicode del carattere alla posizione i
         hash+=str.charCodeAt(i);
     }
+
+    //restituiamo l'hash calcolato
 
     return hash;
 
  }
 
 
-
+    //Metodo per verificare se la tabella è vuota
 
     isEmpty(){
         return this.size === 0;
@@ -95,16 +133,23 @@ class hashTable{
 
     insert(key,value){
 
+        //gestiamo il caso in cui la chiave è null
+
+
          if(key === null) throw new Error("Null key");
+
+            //Calcoliamo l'hash della chiave
 
          const hash = this.stringHashCode(key);
 
+         //Creiamo una nuova entry nella hash table
 
          let newEntry = new entry(value,key,hash);
+            //Calcoliamo l'indice del bucket in cui inserire la nuova entry
 
          let buckeIndex = this.normalizeIndex(newEntry.hash);
 
-         //DA CREARE METODO PER CERCARE NELLA LISTA COLLEGATA
+         //Inseriamo la nuova entry nel bucket corrispondente
 
          return this.bucketInsertEntry(buckeIndex,newEntry)
     }
@@ -115,14 +160,22 @@ class hashTable{
     //Restituisce null se il valore è null oppure non esiste
 
     get(key){
+        //gestiamo il caso in cui la chiave è null
         if(key === null) return null;
+
+        //Calcoliamo'indice hashato del bucket in cui cercare la entry
 
         let bucketIndex = this.normalizeIndex(this.stringHashCode(key));
 
+        //Cerchiamo la entry nel bucket corrispondente
 
         let entry = this.bucketSearchEntry(bucketIndex,key)
 
+        //Se la entry esiste, restituiamo il suo valore
+
         if(entry != null) return entry.value;
+
+        //Altrimenti restituiamo null
 
         return null
      }
@@ -134,8 +187,12 @@ class hashTable{
 
      remove(key){
 
+        //Gestiamo il caso in cui la chiave è null
+
         if(key === null) return null;
+        //Calcoliamo l'indice hashato del bucket in cui cercare la entry da rimuovere
         let index = this.normalizeIndex(this.stringHashCode(key));
+        //Rimuoviamo la entry dal bucket corrispondente
         return this.bucketRemoveEntry(index,key)
 
      }
@@ -150,11 +207,20 @@ class hashTable{
 
      bucketRemoveEntry(index, key){
 
+        //Cerca la entry da rimuovere nel bucket corrispondente
+
         let entry = this.bucketSearchEntry(index, key);
 
+        //Se la entry esiste, la rimuoviamo
+
         if(entry != null) {
+
+            //cerchiamo il bucket corrispondente
             let links = this.table[index];
+            //Rimuoviamo la entry dalla lista collegata
             links.remove(entry);
+
+            //decrementiamo la dimensione della tabella
 
             --this.size;
             return entry.value;
@@ -172,29 +238,48 @@ class hashTable{
 
      bucketInsertEntry(index,entry){
 
+        //Otteniamo il bucket corrispondente all'indice
+
         let bucket = this.table[index];
 
+        //Se il bucket non esiste, creiamo una nuova lista collegata
+
         if(bucket === undefined) { 
+            //Creiamo una nuova lista collegata
             bucket = new linkedList();
+            //Assegniamo la nuova lista collegata all'indice corrispondente
             this.table[index] = bucket
         
-        };
+        }
+
+
+        //Cerchiamo se la entry esiste già nel bucket
 
         let entryEXT= this.bucketSearchEntry(index, entry.key)
 
+        //Se la entry non esiste, la aggiungiamo al bucket
+
         if(entryEXT == null){
            
-            
+            //Aggiungiamo la nuova entry al bucket
             
 
             bucket.add(entry);
+            // sse Incrementiamo la dimensione della tabella e se supera la soglia, ridimensioniamo la tabella
         if(++this.size > this.threshold) this.resizeTable();
+
+        //altrimenti restituiamo null
 
             return null;
         } else {
 
+            //Se la entry esiste già, aggiorniamo il suo valore e restituiamo il vecchio valore
+
             let old = entryEXT.value
+            //Aggiorniamo il valore della entry esistente con il nuovo valore
             entryEXT.value = entry.value;
+
+            //Restituiamo il vecchio valore
 
             return old
 
@@ -210,19 +295,29 @@ class hashTable{
 
       bucketSearchEntry(index, key){
 
+        //Gestiamo il caso in cui la chiave è null
+
         if(key === null) return null;
+
+        //Otteniamo il bucket corrispondente all'indice della tabella
 
         let bucket = this.table[index];
 
-        if(bucket === undefined) return null;
+        //Se il bucket non esiste, restituiamo null
 
+        if(bucket === undefined) return null;
+        
+        //Cerchiamo la entry nel bucket
 
         for(let entry of bucket){
+            //Se la chiave della entry corrisponde alla chiave cercata, restituiamo la entry
             if(entry.key === key){
                 return entry;
             }
 
         }
+
+        //altrimenti restituiamo null
 
          return null;
 
@@ -238,28 +333,33 @@ class hashTable{
 
 
       resizeTable(){
+        //Salviamo la vechcia tabella con i relativi bucket
+        const oldTable = this.table;
+
+        //Raddoppiamo la capacità della tabella
+
         this.capacity *=2;
+        //Aggiorniamo la soglia in base alla nuova capacità e al fattore di carico massimo
         this.threshold = this.capacity * this.MAX_LOAD_FACTOR;
 
-        let newTable = new Array(this.capacity);
-        
-        
+        //Creiamo una nuova tabella con la nuova capacità a 0
 
-        for(let i = 0;i<this.table.length;i++){
-            if(this.table[i] != null){
-                for(let entry of this.table[i]){
-                    let bucketIndex = this.normalizeIndex(entry.hash);
-                    let bucket = newTable[bucketIndex];
-                    if(bucket === undefined) {
-                        bucket = new linkedList();
-                        newTable[bucketIndex] = bucket
-                    }
-                    bucket.add(entry)
-                 }
+        this.table = new Array(this.capacity);
+        this.size=0;
+
+        //Iteriamo attraverso tutti i bucket della vecchia tabella e reinseriamo le entry nella nuova tabella
+
+
+        for(let bucket of oldTable){
+            //Se il bucket non è null, iteriamo attraverso le entry e le reinseriamo nella nuova tabella
+            if(bucket!=null){
+                for(let entry of bucket){
+                    //inseriamo la entry nella nuova tabella
+                    this.insert(entry.key,entry.value)
+                }
             }
         }
 
-        this.table = newTable
       }
 
 
@@ -269,9 +369,14 @@ class hashTable{
 
       returnKeys(){
 
+        //Array per memorizzare le chiavi
+
         let keys = [];
 
+        //cerchiamo in tutti gli indici della tabella
+
         for(let bucket of this.table){
+            //Se il bucket non è null, iteriamo attraverso le entry e aggiungiamo le chiavi all'array
             if(bucket!=null){
                 for(let entry of bucket){
 
@@ -281,6 +386,7 @@ class hashTable{
             }
          
         }
+        //Restituiamo l'array delle chiavi
                return keys
       }
 
@@ -291,9 +397,14 @@ class hashTable{
 
         returnValues(){
 
+            //Array per memorizzare i valori
+
         let values = [];
 
+        //cerchiamo in tutti gli indici della tabella
+
         for(let bucket of this.table){
+            //Se il bucket non è null, iteriamo attraverso le entry e aggiungiamo i valori all'array
             if(bucket!=null){
                 for(let entry of bucket){
 
@@ -303,15 +414,10 @@ class hashTable{
             }
          
         }
+        //Restituiamo l'array dei valori
 
               return values
       }
-
-
-
-
-
-      //FINIRE DI COMMENTARLI E TESTARLI
 
 
 
@@ -331,6 +437,8 @@ let ht = new hashTable(5,0.7);
 ht.insert("nome","Mario");
 ht.insert("cognome","Rossi");
 ht.insert("età",30);
+ht.insert("paese","Italia");
+ht.insert("professione","Ingegnere");
 
 
 
