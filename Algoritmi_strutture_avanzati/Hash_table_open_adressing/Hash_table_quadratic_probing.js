@@ -6,6 +6,7 @@ import { HashTableOpenAddressing } from "./Hash_table_open_addressing.js"
 
 
 
+
 export class quadraticProbing extends HashTableOpenAddressing {
 
     constructor(capacity,loadFactor){
@@ -71,3 +72,20 @@ export class quadraticProbing extends HashTableOpenAddressing {
 
 
 }
+
+
+
+let hashTable = new quadraticProbing(10,0.7);
+hashTable.insert("apple",1);
+hashTable.insert("banana",2);
+hashTable.insert("orange",3);
+hashTable.insert("grape",4);
+hashTable.insert("melon",5);
+hashTable.insert("kiwi",6);
+hashTable.insert("pear",7);
+hashTable.insert("peach",8);
+hashTable.insert("plum",9);
+hashTable.insert("mango",10);
+hashTable.remove("orange");
+console.log(hashTable.toString());
+console.log(hashTable.get("banana"));
