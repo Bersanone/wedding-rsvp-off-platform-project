@@ -1,4 +1,4 @@
-import { quadraticProbing } from "./Hash_table_quadratic_probing.js";
+//import { quadraticProbing } from "./Hash_table_quadratic_probing.js";
 
 
 /*Implementazione di una hash table che utilizza l'open addressing
@@ -29,14 +29,12 @@ export class HashTableOpenAddressing {
 
         //Iniziallizzazione
 
+        this.probing
+
+
+        this.defaultCapacity = 7;
         this.loadFactor = loadFactor;
         this.capacity=Math.max(this.defaultCapacity,capacity);
-
-
-        this.probing = new quadraticProbing();
-        this.probing.adjustCapacity()
-
-
         this.threshold= this.capacity*loadFactor;
         this.modificationCount=0;
 
@@ -55,7 +53,6 @@ export class HashTableOpenAddressing {
         //Token speciale per indicare la cancellazione di una coppia chiave-valore 
 
         this.tombstone = new Object();
-        this.defaultCapacity = 7;
         this.defaultLoadFactor = 0.65;
 
 
@@ -109,6 +106,8 @@ increaseSize(){
 //Metodo pwe pulire la tabella
 
    clear(){
+
+    //cicliamo tutti gli elementi della tabella e li impostiamo a null
     for(let i=0;i<this.capacity;i++){
         this.keys[i]=null
         this.values[i]=null
@@ -152,12 +151,13 @@ isEmpty(){
 
 //Metodo per restituire le chiavi in una hash table
 
-
-
-
 getKeys(){
 
+    //Creiamo un array per le chiavi
+
     let hashTableKeys=new Array(this.getSize());
+
+    //Cicliamo tutti gli elementi della tabella e aggiungiamo le chiavi non nulle e non tombstone all'array
 
     for(let i = 0; i<this.capacity; i++){
         if(this.keys[i] !== null && this.keys[i] !== this.tombstone){
@@ -178,7 +178,10 @@ getKeys(){
 
 
 getValues(){
+    //Creiamo un array per i valori
     let hashTableValues = new Array(this.getSize());
+
+    //Cicliamo tutti gli elementi della tabella e aggiungiamo i valori non nulli e non tombstone all'array
 
     for(let i = 0; i < this.capacity; i++){
         if(this.values[i] !== null && this.values[i] !== this.tombstone){
@@ -190,90 +193,51 @@ getValues(){
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ///////////////////////////////////              Metodi di supporto
 
 
 
-
+//Metodo per ridimensionare la tabella
+//Quando il numero di bucket usati supera la soglia threshold 
+//la tabella viene ridemensionata e tutte le coppie chiave-valore vengono reinserite nella nuova tabella
 
 
 resizeTable(){
-    this.increaseSize();
-    this.probing.adjustCapacity();
 
+    //Salviamo i vecchi array di chiavi e valori
 
     this.threshold = this.capacity*this.loadFactor
+    let oldKeyTable = this.keys
+    let oldValueTable = this.values
+
+    //Chiamiamo il metodo per aumentare la dimensione della tabella 
+    //e aggiustiamo la capacità per essere sicuri che sia un numero primo 
+    //In questo modo riduciamo i loop infiniti durante le operazioni di inserimento e ricerca
+
+    this.increaseSize();
+    this.adjustCapacity();
 
 
-    let oldKeyTable = new Array(this.capacity)
-    let oldValueTable = new Array(this.capacity)
-
-
-    //Scambio delle key
-
-    let keyTableMap = this.keys
-    this.key = oldValueTable
-    oldKeyTable = keyTableMap
-
-
-
-    //Scambio dei valori
-
-    let valueTableMap = this.values
-    this.values = oldValueTable
-    oldKeyTable = valueTableMap
+    
 
 
 
-    //Resettiamo il conteggio delle chiavi dei bucket
+    //Resettiamo il conteggio delle chiavi dei bucket 
+    //e resttiamo gli array delle chiavi e dei valori
+    //Prendiamo la nuova capacita calcolata da .adjustCapacity()
 
-
+    this.keys = new Array(this.capacity);
+    this.values = new Array(this.capacity);
     this.keyCount = 0;
     this.usedBuckets = 0
 
 
+    //Cicliamo all'interno dei vecchi array 
+    //e reinseriamo le coppie chiave-valore nella nuova tabella
+
+
     for(let i = 0; i < oldKeyTable.length; i++){
+        //escludiamo sempre le tombstone e le chiavi nulle
         if(oldKeyTable[i] != null && oldKeyTable[i] != this.tombstone){
             this.insert(oldKeyTable[i],oldValueTable[i]);
             oldKeyTable[i] =  null;
@@ -292,7 +256,7 @@ resizeTable(){
 
 
 
-
+//Metodo per calcolare l'hash di un indice
 
 normalizeIndex(keyH){
     return (keyH & 0x7FFFFFFF) % this.capacity
@@ -303,34 +267,67 @@ normalizeIndex(keyH){
 
 
 
-
+//metodo per trovare il grande comune divisore tra due numeri
 gcd(a,b){
     if(b===0) return a;
     return this.gcd(b, a%b)
 }
 
 
+//Metodo per inserire una coppia di chiave valore all'interno della tabella
 
 insert(key,val){
+    //Se viene passata una chiave nulla lanciamo un errore
     if(key == null) throw Error('Chiave nulla');
+
+    //Se il numero di bucket usati supera la soglia ridimensioniamo la tabella
 
     if(this.usedBuckets >= this.threshold) this.resizeTable();
 
+    //Calcoliamo l'indice di partenza per l'inserimento
+    //In questo caso passiamo l'hash della chiave al metodo normalizeIndex
+    //Per poi ottenere un indice valido all'interno della tabella
+
     let offset = this.normalizeIndex(this.stringHashCode(key));
 
-    for(let i = offset,j=1,x=1;;i=this.normalizeIndex(offset+this.probing(x++))) {
+    //In questo ciclo lo spazio vuoto in mezzo ai punti virgola dice a JavaScript
+    //che il ciclo non ha una condizione di terminazione esplicita
+    //e continuerà fino a quando non incontrerà un'istruzione di ritorno o di interruzione
+    //Sostanzialmente è come aggiungere un while(true) all'interno del ciclo for
+     
 
+
+    //Inizializziamo i vari contatori
+    //Impostiamo j a -1 per indicare che non abbiamo ancora trovato una tombstone 
+    // e non fermiamo il ciclo
+    
+    //Finche non scatta una condizione di ritorno 
+    // il ciclo continua a cercare uno spazio libero
+    //Aggiungebndo all'indice di partenza l'output della funzione di probing
+    for(let i = offset,j=-1,x=1; ;i=this.normalizeIndex(offset+this.probe(x++))) {
+      
+        //Se troviamo una tombstone salviamo il suo indice in j
         if(this.keys[i] === this.tombstone){
             if(j == -1) j=i
+
+    //Se troviamo una chiave non nulla controlliamo se è uguale a quella che vogliamo inserire
 
         }else if (this.keys[i] != null){
 
             if(this.keys[i] === key){
 
+                //In caso di chiave già esistente salviamo il vecchio valore
+
                 let oldValue = this.values[i];
+
+                //se j è -1 significa che non abbiamo trovato tombstone
+                //quindi sovrascriviamo il valore alla posizione i
 
                 if(j == -1){
                     this.values[i] = val
+                    //Altrimenti spostiamo la coppia chiave-valore alla posizione j
+                    //e impostiamo la posizione i come tombstone
+
                 } else {
 
                     this.keys[i] = this.tombstone;
@@ -340,22 +337,32 @@ insert(key,val){
 
                 }
 
+                //Incrementiamo il contatore delle modifiche e ritorniamo il vecchio valore
+
                 this.modificationCount++;
                 return oldValue;
 
             }
 
+            //Se troviamo uno spazio vuoto (null) verifichiamo se abbiamo trovato una tombstone in precedenza
+
         } else {
+
+            //Se la variabile j è ancora -1 significa che non abbiamo trovato tombstone
+            //quindi inseriamo la nuova coppia chiave-valore alla posizione i
+            //e incrementiamo i contatori delle chiavi e dei bucket usati
 
             if(j == -1) {
                 this.usedBuckets++;
                 this.keyCount++;
-                this.keys[j] = key;
-                this.values[j] = val
+                this.keys[i] = key;
+                this.values[i] = val
             
             
             
-            
+            //Se j non è -1 significa che abbiamo trovato una tombstone
+            //quindi spostiamo la coppia chiave-valore alla posizione j
+
             } else {
 
                 this.keyCount++;
@@ -380,6 +387,7 @@ insert(key,val){
 
 
 
+//Metodo per verificare l'esistenza di una chiave nella tabella
 
 
 
@@ -387,21 +395,29 @@ hasKey(key){
 
     if(key == null) throw Error('Chiave nulla');
 
+    //Assegnamo come punto di partenza l'indice calcolato dall'hash della chiave
+
     let offset = this.normalizeIndex(this.stringHashCode(key))
 
 
+    //Utilizziamo un ciclo infinito per cercare la chiave
+    //Aumentiamo l'indice di partenza con l'output della funzione di probing
+    //Finchè non troviamo la chiave o uno spazio vuoto
 
-    for(let i =0, j = -1, x=1;;i=this.normalizeIndex(offset+this.probing(x++))){
-
+    for(let i =0, j = -1, x=1;;i=this.normalizeIndex(offset+this.probe(x++))){
+        
+        //Se troviamo una tombstone salviamo il suo indice in j
         if(this.keys[i] === this.tombstone){
             if(j === -1) j=i;
 
-
+        //Se troviamo una chiave non nulla controlliamo se è uguale a quella cercata
         }else if(this.keys[i] != null) {
 
             if(this.keys[i] === key){
 
-
+                //se j non è -1 significa che abbiamo trovato una tombstone
+                //quindi spostiamo la coppia chiave-valore alla posizione j
+                //e impostiamo la posizione i come tombstone
 
 
                 if(j!=-1){
@@ -429,25 +445,37 @@ hasKey(key){
 
 
 
+//Metodo per restituire il valore associato a una chiave
 
 get(key){
     if(key === null) throw Error('Chiave nulla');
 
+    //usiamo l'hash della chiave come punto di partenza
 
     let offset = this.normalizeIndex(this.stringHashCode(key));
 
+     //Cicliamo finchè non troviamo la chiave o uno spazio vuoto
+     //Aumentiamo l'indice di partenza con l'output della funzione di probing
+    for(let i = offset,j=-1,x=1;;i=this.normalizeIndex(offset+this.probe(x++))){
 
-    for(let i = offset,j=-1,x=1;;i=this.normalizeIndex(offset+this.probing(x++))){
+        //Se troviamo la corrispondenza con la chiave passata
 
         if(this.keys[i] === key){
+
+            //Se j non è -1 significa che abbiamo trovato una tombstone
+            //quindi spostiamo la coppia chiave-valore alla posizione j
+            //e impostiamo la posizione i come tombstone
 
             if(j != -1){
                 this.keys[j] = this.keys[i];
                 this.values[j] = this.values[i];
                 this.keys[i] = this.tombstone;
                 this.values[i] = null;
+                //restituiamo il valore associato alla chiave con indice j
                 return this.values[j];
             } else {
+                //restituiamo il valore associato alla chiave con indice i ù
+                // se non è una tombstone
                 return this.values[i]
             }
 
@@ -467,14 +495,29 @@ remove(key){
 
     if(key === null) throw Error('Chiave nulla');
 
+    //usiamo l'hash della chiave come punto di partenza
+
     let offset = this.normalizeIndex(this.stringHashCode(key));
 
 
-    for(let i = offset,x=1;;i=this.normalizeIndex(offset+this.probing(x++))){
+    //Cicliamo finchè non troviamo la chiave o uno spazio vuoto
+    //Aumentiamo l'indice di partenza con l'output della funzione di probing
 
+
+
+    for(let i = offset,x=1;;i=this.normalizeIndex(offset+this.probe(x++))){
+        //Se troviamo una tombstone continuiamo perchè
+        //l'elemento è stato cancellato in precedenza
         if(this.keys[i] === this.tombstone) continue;
 
+
+        //Se troviamo uno spazio vuoto (null) significa che la chiave non esiste
+
         if(this.keys[i] === null) return null;
+
+        //Se troviamo la chiave passata come parametro
+        //la cancelliamo impostando la sua posizione come tombstone
+        //aggiorniamo i contatori e restituiamo il vecchio valore
 
         if (this.keys[i] === key){
             this.keyCount--;
@@ -512,39 +555,7 @@ toString(){
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 }
 
 
 
-let hashTable = new HashTableOpenAddressing(10,0.7);
-hashTable.insert("apple",1);
-hashTable.insert("banana",2);
-hashTable.insert("orange",3);
-console.log(hashTable.toString());
